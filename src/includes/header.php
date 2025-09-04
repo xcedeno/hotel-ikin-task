@@ -14,6 +14,7 @@ if (!function_exists('getRoleBadge')) {
         }
     }
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="es">

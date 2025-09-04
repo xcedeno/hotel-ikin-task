@@ -1,6 +1,6 @@
 <?php
 session_start();
-header('Content-Type: text/html; charset=UTF-8');
+
 // Verificar si el usuario está autenticado
 function requireAuth() {
     if (!isset($_SESSION['user_id'])) {
