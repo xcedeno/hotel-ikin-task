@@ -14,8 +14,10 @@ if (!function_exists('getRoleBadge')) {
         }
     }
 }
-
 ?>
+<!-- En includes/header.php, dentro del <head> -->
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
 <!DOCTYPE html>
 <html lang="es">
 <head>

@@ -47,6 +47,51 @@ function canEditTask($task, $currentUserId) {
     
     return false;
 }
+function canDeleteTask($task, $currentUserId) {
+    if (!isset($_SESSION['user_role'])) {
+        return false;
+    }
+    
+    $userRole = $_SESSION['user_role'];
+    
+    // Solo jefes y admin pueden eliminar cualquier tarea
+    if ($userRole === 'admin' || $userRole === 'jefe') {
+        return true;
+    }
+    
+    // Asistentes pueden eliminar solo las tareas que crearon
+    if ($userRole === 'asistente' && isset($task['created_by']) && $task['created_by'] == $currentUserId) {
+        return true;
+    }
+    
+    return false;
+}
+/**
+ * Sanitiza output asegurando UTF-8 y previniendo XSS
+ */
+function safeOutput($text) {
+    if (empty($text)) {
+        return $text;
+    }
+    
+    // Corregir encoding mal interpretado
+    $fixedText = $text;
+    
+    // Corregir caracteres con problemas de encoding
+    if (preg_match('/Ã¡|Ã©|Ã­|Ã³|Ãº|Ã±|Ã|Ã|Ã|Ã|Ã|Ã/', $fixedText)) {
+        $fixedText = utf8_encode($fixedText);
+    }
+    
+    // Aplicar htmlspecialchars para prevenir XSS
+    return htmlspecialchars($fixedText, ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * Función alias más corta para uso en templates
+ */
+function so($text) {
+    return safeOutput($text);
+}
 
 function getRoleBadge($role) {
     $badges = [

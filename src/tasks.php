@@ -111,7 +111,30 @@ try {
     error_log("Error al obtener usuarios: " . $e->getMessage());
     $users = [];
 }
+// Procesar eliminación de tarea
+if (isset($_GET['delete_task'])) {
+    $deleteTaskId = (int)$_GET['delete_task'];
+    
+    if (hasPermission('jefe')) { // Solo jefes y admin pueden eliminar
+        try {
+            $stmt = $pdo->prepare("DELETE FROM tasks WHERE id = ?");
+            $stmt->execute([$deleteTaskId]);
+            
+            header('Location: tasks.php?success=task_deleted');
+            exit;
+            
+        } catch (PDOException $e) {
+            $error = "Error al eliminar tarea: " . $e->getMessage();
+            error_log($error);
+        }
+    } else {
+        $error = "No tienes permisos para eliminar tareas";
+    }
+}
+
+
 ?>
+
 
 <!DOCTYPE html>
 <html lang="es">
@@ -230,6 +253,13 @@ try {
                                                 <a href="view_task.php?id=<?= $task['id'] ?>" class="btn btn-sm btn-outline-info">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
+                                                <?php if (hasPermission('jefe')): ?>
+                                                    <a href="delete_confirmation.php?type=task&id=<?= $task['id'] ?>" 
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    onclick="confirmDelete(this, 'task', <?= $task['id'] ?>, '<?= addslashes($task['title']) ?>')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </a>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     </div>

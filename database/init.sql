@@ -31,16 +31,10 @@ CREATE TABLE tasks (
 -- Insertar usuarios iniciales
 INSERT INTO users (username, password, full_name, role) VALUES
 ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrador Principal', 'admin'),
-('jefe.tecnologia', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Juan Pérez', 'jefe'),
-('analista1', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'xavier cedeño', 'analista'),
-('asistente1', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Carlos López', 'asistente'),
-('asistente2', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Ana Rodríguez', 'asistente'),
-('auxiliar1', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Pedro Martínez', 'auxiliar');
 
--- Insertar tareas de ejemplo
-INSERT INTO tasks (title, description, priority, assigned_to, created_by, due_date) VALUES
-('Actualizar sistema de reservas', 'Actualizar a la versión 3.2 del software de reservas', 'alta', 3, 2, '2024-02-15'),
-('Reparar impresora recepción', 'La impresora HP LaserJet no imprime', 'media', 5, 3, '2024-02-10'),
-('Configurar nuevo access point', 'Instalar AP en área de piscina', 'media', 4, 2, '2024-02-20'),
-('Backup base de datos', 'Realizar backup completo de la BD', 'alta', 3, 2, '2024-02-08'),
-('Capacitación nuevo software', 'Capacitar personal en nuevo sistema POS', 'baja', 4, 2, '2024-02-25');
+ALTER DATABASE hotel_ikin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE users CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE tasks CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Asegurar que las tablas usan UTF-8
+ALTER TABLE users MODIFY username VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8

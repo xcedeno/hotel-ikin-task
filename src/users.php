@@ -122,13 +122,11 @@ if (isset($_GET['delete_id'])) {
                                                         <a href="edit_user.php?id=<?= $user['id'] ?>" class="btn btn-outline-primary">
                                                             <i class="bi bi-pencil"></i>
                                                         </a>
-                                                        <?php if ($user['id'] != $_SESSION['user_id']): ?>
-                                                        <a href="users.php?delete_id=<?= $user['id'] ?>" 
-                                                        class="btn btn-outline-danger" 
-                                                        onclick="return confirm('¿Estás seguro de eliminar este usuario?')">
+                                                        <a href="delete_confirmation.php?type=user&id=<?= $user['id'] ?>" 
+                                                        class="btn btn-outline-danger"
+                                                        onclick="confirmDelete(this, 'user', <?= $user['id'] ?>, '<?= addslashes($user['full_name']) ?>')">
                                                             <i class="bi bi-trash"></i>
                                                         </a>
-                                                        <?php endif; ?>
                                                     </div>
                                                 </td>
                                             </tr>
