@@ -25,15 +25,23 @@ function canEditTask($task, $currentUserId) {
     
     $userRole = $_SESSION['user_role'];
     
+    // Admin y jefe pueden editar cualquier tarea
     if ($userRole === 'admin' || $userRole === 'jefe') {
         return true;
     }
     
+    // Analistas pueden editar cualquier tarea
     if ($userRole === 'analista') {
         return true;
     }
     
+    // Asistentes pueden editar solo las tareas que crearon
     if ($userRole === 'asistente' && isset($task['created_by']) && $task['created_by'] == $currentUserId) {
+        return true;
+    }
+    
+    // Auxiliares pueden editar solo las tareas asignadas a ellos
+    if ($userRole === 'auxiliar' && isset($task['assigned_to']) && $task['assigned_to'] == $currentUserId) {
         return true;
     }
     
@@ -73,6 +81,7 @@ function getStatusBadge($status) {
     
     return $badges[$status] ?? '<span class="badge bg-secondary">Desconocido</span>';
 }
+
 
 // Función para sanitizar datos de entrada
 function sanitizeInput($input) {
