@@ -12,23 +12,25 @@ $statusFilter = $_GET['status'] ?? '';
 $priorityFilter = $_GET['priority'] ?? '';
 $assignedFilter = $_GET['assigned'] ?? '';
 
+error_log("Filtros - Status: $statusFilter, Priority: $priorityFilter, Assigned: $assignedFilter");
+
 // Construir consulta con filtros
 $whereConditions = [];
 $params = [];
 
-if ($statusFilter) {
+if (!empty($statusFilter)) {
     $whereConditions[] = "t.status = ?";
     $params[] = $statusFilter;
 }
 
-if ($priorityFilter) {
+if (!empty($priorityFilter)) {
     $whereConditions[] = "t.priority = ?";
     $params[] = $priorityFilter;
 }
 
-if ($assignedFilter) {
+if (!empty($assignedFilter)) {
     $whereConditions[] = "t.assigned_to = ?";
-    $params[] = $assignedFilter;
+    $params[] = (int)$assignedFilter;
 }
 
 // Si es auxiliar, solo ver sus tareas
@@ -39,7 +41,11 @@ if ($_SESSION['user_role'] === 'auxiliar') {
 
 $whereClause = $whereConditions ? "WHERE " . implode(" AND ", $whereConditions) : "";
 
-// Obtener tareas - SOLUCIÓN AL ERROR
+// DEBUG: Verificar consulta
+error_log("Where Clause: $whereClause");
+error_log("Params: " . print_r($params, true));
+
+// Obtener tareas - VERSIÓN CORREGIDA
 try {
     $sql = "
         SELECT t.*, u1.full_name as assigned_name, u2.full_name as created_name 
@@ -48,34 +54,48 @@ try {
         LEFT JOIN users u2 ON t.created_by = u2.id 
         $whereClause 
         ORDER BY t.created_at DESC 
-        LIMIT :limit OFFSET :offset
+        LIMIT ? OFFSET ?
     ";
+    
+    error_log("SQL con LIMIT: $sql");
     
     $stmt = $pdo->prepare($sql);
     
-    // Bind parameters nombrados para LIMIT y OFFSET
-    foreach ($params as $key => $value) {
-        $stmt->bindValue(($key + 1), $value);
+    // Preparar todos los parámetros (filtros + limit + offset)
+    $allParams = array_merge($params, [$limit, $offset]);
+    
+    error_log("Todos los parámetros: " . print_r($allParams, true));
+    
+    // Ejecutar con todos los parámetros
+    for ($i = 0; $i < count($allParams); $i++) {
+        $paramType = PDO::PARAM_STR;
+        if ($i >= count($params)) {
+            $paramType = PDO::PARAM_INT; // limit y offset son integers
+        }
+        $stmt->bindValue($i + 1, $allParams[$i], $paramType);
     }
     
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
-    
     $tasks = $stmt->fetchAll();
+    
+    error_log("Tareas encontradas después de filtro: " . count($tasks));
     
 } catch (PDOException $e) {
     error_log("Error en consulta de tareas: " . $e->getMessage());
     $tasks = [];
 }
 
-// Total de tareas para paginación
+// Total de tareas para paginación (SOLO para mostrar el total, sin limit/offset)
 try {
     $countSql = "SELECT COUNT(*) FROM tasks t $whereClause";
+    error_log("Count SQL: $countSql");
+    
     $countStmt = $pdo->prepare($countSql);
     $countStmt->execute($params);
     $totalTasks = $countStmt->fetchColumn();
     $totalPages = ceil($totalTasks / $limit);
+    
+    error_log("Total tasks: $totalTasks");
     
 } catch (PDOException $e) {
     error_log("Error en conteo de tareas: " . $e->getMessage());
@@ -119,6 +139,7 @@ try {
                     </a>
                     <?php endif; ?>
                 </div>
+
 
                 <!-- Filtros -->
                 <div class="card mb-4">
