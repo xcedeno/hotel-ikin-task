@@ -145,4 +145,71 @@ function redirectIfNotLoggedIn() {
         exit;
     }
 }
+
+/**
+ * Generar número de ticket automático
+ */
+function generateTicketNumber($pdo) {
+    $year = date('Y');
+    
+    // Obtener el último ticket del año actual
+    $stmt = $pdo->prepare("SELECT ticket_number FROM support_tickets WHERE ticket_number LIKE ? ORDER BY id DESC LIMIT 1");
+    $stmt->execute(["TKT-$year-%"]);
+    $lastTicket = $stmt->fetch();
+    
+    if ($lastTicket) {
+        // Extraer el número secuencial
+        $parts = explode('-', $lastTicket['ticket_number']);
+        $lastNumber = (int)end($parts);
+        $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
+    } else {
+        $newNumber = '0001';
+    }
+    
+    return "TKT-$year-$newNumber";
+}
+
+/**
+ * Obtener badge para estado de ticket
+ */
+function getTicketStatusBadge($status) {
+    $badges = [
+        'abierto' => '<span class="badge bg-primary">Abierto</span>',
+        'en_proceso' => '<span class="badge bg-warning">En Proceso</span>',
+        'esperando_cliente' => '<span class="badge bg-info">Esperando Cliente</span>',
+        'resuelto' => '<span class="badge bg-success">Resuelto</span>',
+        'cerrado' => '<span class="badge bg-secondary">Cerrado</span>',
+        'cancelado' => '<span class="badge bg-danger">Cancelado</span>'
+    ];
+    
+    return $badges[$status] ?? '<span class="badge bg-secondary">Desconocido</span>';
+}
+
+/**
+ * Calcular tiempo transcurrido desde creación del ticket
+ */
+function getTicketAge($createdAt) {
+    $now = new DateTime();
+    $created = new DateTime($createdAt);
+    $interval = $now->diff($created);
+    
+    if ($interval->d > 0) {
+        return $interval->d . ' día' . ($interval->d > 1 ? 's' : '');
+    } elseif ($interval->h > 0) {
+        return $interval->h . ' hora' . ($interval->h > 1 ? 's' : '');
+    } else {
+        return $interval->i . ' minuto' . ($interval->i > 1 ? 's' : '');
+    }
+}
+
+/**
+ * Verificar si el ticket está vencido
+ */
+function isTicketOverdue($dueDate, $status) {
+    if (empty($dueDate) || in_array($status, ['resuelto', 'cerrado', 'cancelado'])) {
+        return false;
+    }
+    
+    return strtotime($dueDate) < time();
+}
 ?>

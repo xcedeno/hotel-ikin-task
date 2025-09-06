@@ -134,3 +134,42 @@ body {
         margin-left: 0;
     }
 }
+/* Estilos para tickets */
+.ticket-card {
+    transition: transform 0.2s;
+    border-left: 4px solid var(--primary);
+}
+
+.ticket-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.ticket-card.urgente {
+    border-left-color: var(--danger);
+}
+
+.ticket-card.alta {
+    border-left-color: var(--warning);
+}
+
+.ticket-card.media {
+    border-left-color: var(--info);
+}
+
+.ticket-card.baja {
+    border-left-color: var(--success);
+}
+
+/* Mejora para las tarjetas de estadísticas */
+.stat-number {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+.stat-label {
+    color: var(--secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
