@@ -212,4 +212,101 @@ function isTicketOverdue($dueDate, $status) {
     
     return strtotime($dueDate) < time();
 }
+/**
+ * Verificar si usuario puede ver un ticket específico
+ */
+function canViewTicket($ticket, $currentUserId) {
+    if (!isset($_SESSION['user_role'])) {
+        return false;
+    }
+    
+    $userRole = $_SESSION['user_role'];
+    
+    // Admin y jefe pueden ver todos los tickets
+    if ($userRole === 'admin' || $userRole === 'jefe') {
+        return true;
+    }
+    
+    // Analistas y asistentes pueden ver tickets asignados o públicos
+    if (in_array($userRole, ['analista', 'asistente'])) {
+        if ($ticket['assigned_to'] == $currentUserId || 
+            $ticket['created_by'] == $currentUserId ||
+            $ticket['is_public'] == true) {
+            return true;
+        }
+    }
+    
+    // Usuarios normales solo pueden ver sus propios tickets
+    if ($userRole === 'usuario') {
+        if ($ticket['created_by'] == $currentUserId || 
+            $ticket['client_email'] == $_SESSION['user_email']) {
+            return true;
+        }
+    }
+    
+    // Auxiliares solo tickets asignados
+    if ($userRole === 'auxiliar' && $ticket['assigned_to'] == $currentUserId) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Verificar si usuario puede enviar mensajes en ticket
+ */
+function canSendMessage($ticket, $currentUserId) {
+    if (!isset($_SESSION['user_role'])) {
+        return false;
+    }
+    
+    $userRole = $_SESSION['user_role'];
+    
+    // Admin y jefe pueden enviar mensajes
+    if ($userRole === 'admin' || $userRole === 'jefe') {
+        return true;
+    }
+    
+    // Personal técnico puede enviar mensajes en tickets asignados
+    if (in_array($userRole, ['analista', 'asistente', 'auxiliar'])) {
+        if ($ticket['assigned_to'] == $currentUserId || 
+            $ticket['is_public'] == true) {
+            return true;
+        }
+    }
+    
+    // Usuarios pueden enviar mensajes en sus propios tickets
+    if ($userRole === 'usuario' && $ticket['created_by'] == $currentUserId) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Verificar si usuario es solo de soporte (solo ve tickets)
+ */
+function isSupportOnlyUser() {
+    if (!isset($_SESSION['user_role'])) {
+        return false;
+    }
+    
+    return $_SESSION['user_role'] === 'usuario';
+}
+
+/**
+ * Obtener rol amigable para mostrar
+ */
+function getFriendlyRole($role) {
+    $roles = [
+        'admin' => 'Administrador',
+        'jefe' => 'Jefe de Tecnología',
+        'analista' => 'Analista de Sistemas',
+        'asistente' => 'Asistente Técnico',
+        'auxiliar' => 'Auxiliar Técnico',
+        'usuario' => 'Usuario Final'
+    ];
+    
+    return $roles[$role] ?? $role;
+}
 ?>

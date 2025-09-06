@@ -167,6 +167,7 @@ try {
                                             <?php else: ?>
                                             N/A
                                             <?php endif; ?>
+                                            
                                         </td>
                                     </tr>
                                     <?php endforeach; ?>

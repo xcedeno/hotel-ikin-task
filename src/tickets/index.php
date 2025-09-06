@@ -47,10 +47,43 @@ if (!hasPermission('jefe')) {
 $whereClause = $whereConditions ? "WHERE " . implode(" AND ", $whereConditions) : "";
 
 // Obtener tickets
+// Construir consulta con filtros usando parámetros nombrados
+$whereConditions = [];
+$namedParams = [];
+
+if (!empty($statusFilter)) {
+    $whereConditions[] = "t.status = :status";
+    $namedParams[':status'] = $statusFilter;
+}
+
+if (!empty($priorityFilter)) {
+    $whereConditions[] = "t.priority = :priority";
+    $namedParams[':priority'] = $priorityFilter;
+}
+
+if (!empty($departmentFilter)) {
+    $whereConditions[] = "t.department_id = :department";
+    $namedParams[':department'] = $departmentFilter;
+}
+
+if (!empty($assignedFilter)) {
+    $whereConditions[] = "t.assigned_to = :assigned";
+    $namedParams[':assigned'] = $assignedFilter;
+}
+
+// Si no es admin/jefe, solo ver tickets asignados o propios
+if (!hasPermission('jefe')) {
+    $whereConditions[] = "(t.assigned_to = :user_id OR t.created_by = :user_id)";
+    $namedParams[':user_id'] = $_SESSION['user_id'];
+}
+
+$whereClause = $whereConditions ? "WHERE " . implode(" AND ", $whereConditions) : "";
+
+// Obtener tickets con parámetros nombrados
 try {
     $sql = "
         SELECT t.*, d.name as department_name, 
-               u1.full_name as assigned_name, u2.full_name as created_name
+            u1.full_name as assigned_name, u2.full_name as created_name
         FROM support_tickets t 
         LEFT JOIN departments d ON t.department_id = d.id 
         LEFT JOIN users u1 ON t.assigned_to = u1.id 
@@ -58,20 +91,25 @@ try {
         $whereClause 
         ORDER BY 
             CASE WHEN t.status = 'abierto' THEN 1 
-                 WHEN t.status = 'en_proceso' THEN 2
-                 WHEN t.status = 'esperando_cliente' THEN 3
-                 ELSE 4 END,
+                WHEN t.status = 'en_proceso' THEN 2
+                WHEN t.status = 'esperando_cliente' THEN 3
+                ELSE 4 END,
             t.priority DESC,
             t.created_at DESC 
-        LIMIT ? OFFSET ?
+        LIMIT :limit OFFSET :offset
     ";
     
     $stmt = $pdo->prepare($sql);
     
-    // Combinar todos los parámetros
-    $allParams = array_merge($params, [$limit, $offset]);
+    // Bind de todos los parámetros nombrados
+    foreach ($namedParams as $key => $value) {
+        $stmt->bindValue($key, $value);
+    }
     
-    $stmt->execute($allParams);
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    
+    $stmt->execute();
     $tickets = $stmt->fetchAll();
     
 } catch (PDOException $e) {
@@ -79,11 +117,17 @@ try {
     $tickets = [];
 }
 
-// Total de tickets para paginación
+// Total de tickets para paginación (usando los mismos parámetros)
 try {
     $countSql = "SELECT COUNT(*) FROM support_tickets t $whereClause";
     $countStmt = $pdo->prepare($countSql);
-    $countStmt->execute($params);
+    
+    // Bind de parámetros para el count
+    foreach ($namedParams as $key => $value) {
+        $countStmt->bindValue($key, $value);
+    }
+    
+    $countStmt->execute();
     $totalTickets = $countStmt->fetchColumn();
     $totalPages = ceil($totalTickets / $limit);
     
@@ -313,7 +357,11 @@ try {
                                                 <a href="edit.php?id=<?= $ticket['id'] ?>" class="btn btn-sm btn-outline-primary">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
+                                                <a href="chat.php?id=<?= $ticket['id'] ?>" class="btn btn-sm btn-outline-success">
+                                                        <i class="bi bi-chat-dots"></i> Chat
+                                                    </a>
                                                 <?php endif; ?>
+                                                
                                             </div>
                                         </div>
                                     </div>
