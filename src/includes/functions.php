@@ -25,19 +25,72 @@ function canEditTask($task, $currentUserId) {
     
     $userRole = $_SESSION['user_role'];
     
+    // Admin y jefe pueden editar cualquier tarea
     if ($userRole === 'admin' || $userRole === 'jefe') {
         return true;
     }
     
+    // Analistas pueden editar cualquier tarea
     if ($userRole === 'analista') {
         return true;
     }
     
+    // Asistentes pueden editar solo las tareas que crearon
+    if ($userRole === 'asistente' && isset($task['created_by']) && $task['created_by'] == $currentUserId) {
+        return true;
+    }
+    
+    // Auxiliares pueden editar solo las tareas asignadas a ellos
+    if ($userRole === 'auxiliar' && isset($task['assigned_to']) && $task['assigned_to'] == $currentUserId) {
+        return true;
+    }
+    
+    return false;
+}
+function canDeleteTask($task, $currentUserId) {
+    if (!isset($_SESSION['user_role'])) {
+        return false;
+    }
+    
+    $userRole = $_SESSION['user_role'];
+    
+    // Solo jefes y admin pueden eliminar cualquier tarea
+    if ($userRole === 'admin' || $userRole === 'jefe') {
+        return true;
+    }
+    
+    // Asistentes pueden eliminar solo las tareas que crearon
     if ($userRole === 'asistente' && isset($task['created_by']) && $task['created_by'] == $currentUserId) {
         return true;
     }
     
     return false;
+}
+/**
+ * Sanitiza output asegurando UTF-8 y previniendo XSS
+ */
+function safeOutput($text) {
+    if (empty($text)) {
+        return $text;
+    }
+    
+    // Corregir encoding mal interpretado
+    $fixedText = $text;
+    
+    // Corregir caracteres con problemas de encoding
+    if (preg_match('/Ã¡|Ã©|Ã­|Ã³|Ãº|Ã±|Ã|Ã|Ã|Ã|Ã|Ã/', $fixedText)) {
+        $fixedText = utf8_encode($fixedText);
+    }
+    
+    // Aplicar htmlspecialchars para prevenir XSS
+    return htmlspecialchars($fixedText, ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * Función alias más corta para uso en templates
+ */
+function so($text) {
+    return safeOutput($text);
 }
 
 function getRoleBadge($role) {
@@ -74,6 +127,7 @@ function getStatusBadge($status) {
     return $badges[$status] ?? '<span class="badge bg-secondary">Desconocido</span>';
 }
 
+
 // Función para sanitizar datos de entrada
 function sanitizeInput($input) {
     return htmlspecialchars(strip_tags(trim($input)), ENT_QUOTES, 'UTF-8');
@@ -90,5 +144,169 @@ function redirectIfNotLoggedIn() {
         header('Location: login.php');
         exit;
     }
+}
+
+/**
+ * Generar número de ticket automático
+ */
+function generateTicketNumber($pdo) {
+    $year = date('Y');
+    
+    // Obtener el último ticket del año actual
+    $stmt = $pdo->prepare("SELECT ticket_number FROM support_tickets WHERE ticket_number LIKE ? ORDER BY id DESC LIMIT 1");
+    $stmt->execute(["TKT-$year-%"]);
+    $lastTicket = $stmt->fetch();
+    
+    if ($lastTicket) {
+        // Extraer el número secuencial
+        $parts = explode('-', $lastTicket['ticket_number']);
+        $lastNumber = (int)end($parts);
+        $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
+    } else {
+        $newNumber = '0001';
+    }
+    
+    return "TKT-$year-$newNumber";
+}
+
+/**
+ * Obtener badge para estado de ticket
+ */
+function getTicketStatusBadge($status) {
+    $badges = [
+        'abierto' => '<span class="badge bg-primary">Abierto</span>',
+        'en_proceso' => '<span class="badge bg-warning">En Proceso</span>',
+        'esperando_cliente' => '<span class="badge bg-info">Esperando Cliente</span>',
+        'resuelto' => '<span class="badge bg-success">Resuelto</span>',
+        'cerrado' => '<span class="badge bg-secondary">Cerrado</span>',
+        'cancelado' => '<span class="badge bg-danger">Cancelado</span>'
+    ];
+    
+    return $badges[$status] ?? '<span class="badge bg-secondary">Desconocido</span>';
+}
+
+/**
+ * Calcular tiempo transcurrido desde creación del ticket
+ */
+function getTicketAge($createdAt) {
+    $now = new DateTime();
+    $created = new DateTime($createdAt);
+    $interval = $now->diff($created);
+    
+    if ($interval->d > 0) {
+        return $interval->d . ' día' . ($interval->d > 1 ? 's' : '');
+    } elseif ($interval->h > 0) {
+        return $interval->h . ' hora' . ($interval->h > 1 ? 's' : '');
+    } else {
+        return $interval->i . ' minuto' . ($interval->i > 1 ? 's' : '');
+    }
+}
+
+/**
+ * Verificar si el ticket está vencido
+ */
+function isTicketOverdue($dueDate, $status) {
+    if (empty($dueDate) || in_array($status, ['resuelto', 'cerrado', 'cancelado'])) {
+        return false;
+    }
+    
+    return strtotime($dueDate) < time();
+}
+/**
+ * Verificar si usuario puede ver un ticket específico
+ */
+function canViewTicket($ticket, $currentUserId) {
+    if (!isset($_SESSION['user_role'])) {
+        return false;
+    }
+    
+    $userRole = $_SESSION['user_role'];
+    
+    // Admin y jefe pueden ver todos los tickets
+    if ($userRole === 'admin' || $userRole === 'jefe') {
+        return true;
+    }
+    
+    // Analistas y asistentes pueden ver tickets asignados o públicos
+    if (in_array($userRole, ['analista', 'asistente'])) {
+        if ($ticket['assigned_to'] == $currentUserId || 
+            $ticket['created_by'] == $currentUserId ||
+            $ticket['is_public'] == true) {
+            return true;
+        }
+    }
+    
+    // Usuarios normales solo pueden ver sus propios tickets
+    if ($userRole === 'usuario') {
+        if ($ticket['created_by'] == $currentUserId || 
+            $ticket['client_email'] == $_SESSION['user_email']) {
+            return true;
+        }
+    }
+    
+    // Auxiliares solo tickets asignados
+    if ($userRole === 'auxiliar' && $ticket['assigned_to'] == $currentUserId) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Verificar si usuario puede enviar mensajes en ticket
+ */
+function canSendMessage($ticket, $currentUserId) {
+    if (!isset($_SESSION['user_role'])) {
+        return false;
+    }
+    
+    $userRole = $_SESSION['user_role'];
+    
+    // Admin y jefe pueden enviar mensajes
+    if ($userRole === 'admin' || $userRole === 'jefe') {
+        return true;
+    }
+    
+    // Personal técnico puede enviar mensajes en tickets asignados
+    if (in_array($userRole, ['analista', 'asistente', 'auxiliar'])) {
+        if ($ticket['assigned_to'] == $currentUserId || 
+            $ticket['is_public'] == true) {
+            return true;
+        }
+    }
+    
+    // Usuarios pueden enviar mensajes en sus propios tickets
+    if ($userRole === 'usuario' && $ticket['created_by'] == $currentUserId) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Verificar si usuario es solo de soporte (solo ve tickets)
+ */
+function isSupportOnlyUser() {
+    if (!isset($_SESSION['user_role'])) {
+        return false;
+    }
+    
+    return $_SESSION['user_role'] === 'usuario';
+}
+
+/**
+ * Obtener rol amigable para mostrar
+ */
+function getFriendlyRole($role) {
+    $roles = [
+        'admin' => 'Administrador',
+        'jefe' => 'Jefe de Tecnología',
+        'analista' => 'Analista de Sistemas',
+        'asistente' => 'Asistente Técnico',
+        'auxiliar' => 'Auxiliar Técnico',
+        'usuario' => 'Usuario Final'
+    ];
+    
+    return $roles[$role] ?? $role;
 }
 ?>
